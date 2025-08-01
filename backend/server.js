@@ -68,6 +68,10 @@ const corsOptions = {
 // Middleware
 app.use(cors(corsOptions));
 
+app.get('/', (req, res) => {
+  res.send('Server running');
+});
+
 // Additional CORS headers
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', process.env.UI_URL);
