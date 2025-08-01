@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 const passport = require('./config/passport');
 const path = require('path');
 
+const db = require("./connection/conn")
 // Import routes
 const userRoutes = require('./routes/userRoute');
 const mentorRoutes = require('./routes/mentorRoute');
