@@ -67,11 +67,19 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:5173',
       'http://localhost:5174',
-    ];
+      // Add your actual deployed URLs here
+      'https://your-app-name.vercel.app',
+      'https://www.your-app-name.vercel.app'
+    ].filter(Boolean); // Remove any undefined values
     
-    console.log('CORS check - Origin:', origin, 'Allowed:', allowedOrigins.includes(origin));
+    console.log('CORS check - Origin:', origin, 'Allowed origins:', allowedOrigins);
     
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.some(allowedOrigin => {
+      // Allow exact match or subdomain match
+      return origin === allowedOrigin || 
+             origin.endsWith(allowedOrigin.replace('https://', '')) ||
+             allowedOrigin.includes(origin.replace('https://', '').replace('www.', ''));
+    })) {
       callback(null, true);
     } else {
       console.log('Blocked by CORS:', origin);
@@ -89,7 +97,8 @@ const corsOptions = {
     'X-Requested-With'
   ],
   exposedHeaders: ['Set-Cookie'],
-  maxAge: 86400 // 24 hours
+  maxAge: 86400, // 24 hours
+  optionsSuccessStatus: 200 // For legacy browser support
 };
 
 // Middleware
@@ -107,9 +116,13 @@ app.use((req, res, next) => {
     'http://localhost:3000',
     'http://localhost:5173',
     'http://localhost:5174'
-  ];
+  ].filter(Boolean);
   
-  if (allowedOrigins.includes(origin)) {
+  // Set CORS headers for all requests
+  if (origin && allowedOrigins.some(allowed => 
+    origin === allowed || 
+    origin.includes(allowed.replace('https://', '').replace('http://', ''))
+  )) {
     res.header('Access-Control-Allow-Origin', origin);
   }
   
@@ -118,23 +131,27 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Expose-Headers', 'Set-Cookie');
   
-  // Add logging for debugging auth requests
+  // Enhanced logging for auth requests
   if (req.url.includes('/auth/')) {
-    console.log('Auth request:', {
+    console.log('Auth request details:', {
       method: req.method,
       url: req.url,
       origin: origin,
-      cookies: req.cookies,
-      hasAuthHeader: !!req.headers.authorization
+      userAgent: req.headers['user-agent'],
+      cookies: Object.keys(req.cookies || {}),
+      hasAuthHeader: !!req.headers.authorization,
+      contentType: req.headers['content-type']
     });
   }
- 
+  
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+    console.log('Preflight request for:', req.url);
+    return res.status(200).end();
   }
+  
   next();
 });
-
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth.jsx';
 import Sidebar from '../../components/user/Sidebar';
 import ProjectInfo from '../../components/user/ProjectInfo';
 import MilestoneForm from '../../components/user/MilestoneForm';

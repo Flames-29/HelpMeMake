@@ -1,5 +1,5 @@
 import React ,{useState , useEffect} from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth.jsx';
 import MentorSidebar from "../../components/mentor/MentorSidebar";
 import Header from "../../components/mentor/Header";
 import Dashboard from "../../components/mentor/Dashboard";

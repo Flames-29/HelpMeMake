@@ -40,6 +40,11 @@ router.get('/google/callback',
         role: req.user.role,
         hasNewPassword: !!req.user.tempGeneratedPassword
       });
+      console.log('Request headers:', {
+        origin: req.headers.origin,
+        referer: req.headers.referer,
+        userAgent: req.headers['user-agent']
+      });
 
       const user = req.user;
       
@@ -56,10 +61,10 @@ router.get('/google/callback',
 
       console.log('Generated JWT token for user:', user.email);
 
-      // Set cookie with proper configuration
-      setJWTCookie(res, token);
+      // Set cookie with proper configuration - using access_token as primary
+      setJWTCookie(res, token, 'access_token');
 
-      // Determine redirect URL
+      // Determine redirect URL with enhanced logging
       let redirectUrl = `${process.env.UI_URL}`;
       
       if (!user.role) {
@@ -79,11 +84,16 @@ router.get('/google/callback',
       if (user.tempGeneratedPassword) {
         console.log('Adding new password to redirect');
         const encodedPassword = encodeURIComponent(user.tempGeneratedPassword);
-        redirectUrl += `?newPassword=${encodedPassword}`;
+        const separator = redirectUrl.includes('?') ? '&' : '?';
+        redirectUrl += `${separator}newPassword=${encodedPassword}`;
       }
 
-      console.log('Redirecting to:', redirectUrl);
-      res.redirect(redirectUrl);
+      console.log('Final redirect URL:', redirectUrl);
+      
+      // Add a small delay to ensure cookie is set
+      setTimeout(() => {
+        res.redirect(redirectUrl);
+      }, 100);
 
     } catch (error) {
       console.error('Google OAuth callback error:', error);
@@ -138,7 +148,7 @@ router.get('/github/callback',
       console.log('Generated JWT token for user:', user.email);
 
       // Set cookie with proper configuration
-      setJWTCookie(res, token);
+      setJWTCookie(res, token, 'access_token');
 
       // Determine redirect URL (same logic as Google)
       let redirectUrl = `${process.env.UI_URL}`;
@@ -159,11 +169,16 @@ router.get('/github/callback',
       if (user.tempGeneratedPassword) {
         console.log('Adding new password to redirect');
         const encodedPassword = encodeURIComponent(user.tempGeneratedPassword);
-        redirectUrl += `?newPassword=${encodedPassword}`;
+        const separator = redirectUrl.includes('?') ? '&' : '?';
+        redirectUrl += `${separator}newPassword=${encodedPassword}`;
       }
 
-      console.log('Redirecting to:', redirectUrl);
-      res.redirect(redirectUrl);
+      console.log('Final redirect URL:', redirectUrl);
+      
+      // Add a small delay to ensure cookie is set
+      setTimeout(() => {
+        res.redirect(redirectUrl);
+      }, 100);
 
     } catch (error) {
       console.error('GitHub OAuth callback error:', error);
@@ -171,7 +186,6 @@ router.get('/github/callback',
     }
   }
 );
-
 // Regular Authentication Routes
 router.post('/signup', authController.signup);
 router.post('/verify-otp', authController.verifyOTP);

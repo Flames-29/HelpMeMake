@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth.jsx';
 import StatCard from '../../components/user/StatCard';
 import SessionCard from '../../components/user/SessionCard';
 import MessageCard from '../../components/user/MessageCard';

@@ -4,15 +4,23 @@ const User = require('../../Model/User');
 const cookieExtractor = (req) => {
   let token = null;
   
+  console.log('Cookie extraction - Available cookies:', req.cookies);
+  console.log('Cookie extraction - Headers:', {
+    authorization: req.headers.authorization,
+    cookie: req.headers.cookie
+  });
+  
   // Check for both cookie names to maintain backward compatibility
   if (req && req.cookies) {
-    // First check for 'token' (what your OAuth is setting)
-    token = req.cookies.token;
+    // Primary cookie name
+    token = req.cookies.access_token;
     
-    // Fallback to 'access_token' for existing functionality
+    // Fallback to 'token' for OAuth flow
     if (!token) {
-      token = req.cookies.access_token;
+      token = req.cookies.token;
     }
+    
+    console.log('Extracted token from cookies:', !!token);
   }
   
   // Fallback to Authorization header
@@ -20,6 +28,20 @@ const cookieExtractor = (req) => {
     const authHeader = req.headers.authorization;
     if (authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7);
+      console.log('Extracted token from Authorization header:', !!token);
+    }
+  }
+  
+  // Additional fallback - check raw cookie header
+  if (!token && req.headers.cookie) {
+    const cookies = req.headers.cookie.split(';');
+    for (const cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === 'access_token' || name === 'token') {
+        token = value;
+        console.log(`Extracted token from raw cookie header (${name}):`, !!token);
+        break;
+      }
     }
   }
   
@@ -32,11 +54,25 @@ const jwtStrategy = new JwtStrategy({
   passReqToCallback: true
 }, async (req, payload, done) => {
   try {
+    console.log('JWT Strategy - Payload:', {
+      userId: payload.userId,
+      email: payload.email,
+      role: payload.role,
+      exp: new Date(payload.exp * 1000)
+    });
+    
     const user = await User.findById(payload.userId).select('-password');
     
     if (!user) {
+      console.log('JWT Strategy - User not found for ID:', payload.userId);
       return done(null, false, { message: 'User not found' });
     }
+    
+    console.log('JWT Strategy - User found:', {
+      id: user._id,
+      email: user.email,
+      role: user.role
+    });
     
     return done(null, user);
   } catch (error) {

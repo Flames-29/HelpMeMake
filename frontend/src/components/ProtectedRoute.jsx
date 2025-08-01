@@ -1,4 +1,4 @@
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.jsx';
 import { useEffect } from 'react';
 
 const ProtectedRoute = ({ children, requiredRole = null, redirectTo = '/login' }) => {

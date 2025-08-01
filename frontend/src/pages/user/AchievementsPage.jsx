@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth.jsx';
 import AchievementBadge from '../../components/user/AchievementBadge';
 import Sidebar from '../../components/user/Sidebar';
 import { 
