@@ -56,13 +56,40 @@ const connectDB = async () => {
   }
 };
 
-// CORS Configuration
+// CORS Configuration - Updated with improved settings
 const corsOptions = {
-  origin: process.env.UI_URL,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      process.env.UI_URL, // Your Vercel URL
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5174',
+    ];
+    
+    console.log('CORS check - Origin:', origin, 'Allowed:', allowedOrigins.includes(origin));
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('Blocked by CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
-  exposedHeaders: ['Set-Cookie']
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'Cookie',
+    'Accept',
+    'Origin',
+    'X-Requested-With'
+  ],
+  exposedHeaders: ['Set-Cookie'],
+  maxAge: 86400 // 24 hours
 };
 
 // Middleware
@@ -72,12 +99,35 @@ app.get('/', (req, res) => {
   res.send('Server running');
 });
 
-// Additional CORS headers
+// Additional CORS headers with improved debugging
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', process.env.UI_URL);
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    process.env.UI_URL,
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:5174'
+  ];
+  
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Accept, Origin, X-Requested-With');
   res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Expose-Headers', 'Set-Cookie');
+  
+  // Add logging for debugging auth requests
+  if (req.url.includes('/auth/')) {
+    console.log('Auth request:', {
+      method: req.method,
+      url: req.url,
+      origin: origin,
+      cookies: req.cookies,
+      hasAuthHeader: !!req.headers.authorization
+    });
+  }
  
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);

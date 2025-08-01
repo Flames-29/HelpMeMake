@@ -1,7 +1,10 @@
 const express = require('express');
+const { setJWTCookie } = require('../config/cookieConfig');
+const jwt = require('jsonwebtoken');
 const passport = require('../config/passport');
 const authController = require('../controller/authController');
 const router = express.Router();
+
 
 // JWT Authentication Middleware
 const authenticateJWT = passport.authenticate('jwt', { session: false });
@@ -23,27 +26,72 @@ router.get('/google', (req, res, next) => {
   })(req, res, next);
 });
 
-router.get('/google/callback', (req, res, next) => {
-  console.log('Google OAuth callback received');
-  
-  passport.authenticate('google', {
-    session: false,
-    failureRedirect: `${process.env.UI_URL}/signup?error=google_auth_failed`
-  })(req, res, (err) => {
-    if (err) {
-      console.error('Google OAuth callback error:', err);
+router.get('/google/callback', 
+  passport.authenticate('google', { 
+    session: false, 
+    failureRedirect: `${process.env.UI_URL}/login?error=google_auth_failed` 
+  }),
+  async (req, res) => {
+    try {
+      console.log('Google OAuth callback triggered');
+      console.log('User from OAuth:', {
+        id: req.user._id,
+        email: req.user.email,
+        role: req.user.role,
+        hasNewPassword: !!req.user.tempGeneratedPassword
+      });
+
+      const user = req.user;
       
-      if (err.message === 'USER_EXISTS') {
-        return res.redirect(`${process.env.UI_URL}/login?error=account_exists&email=${encodeURIComponent(err.email)}`);
+      // Generate JWT token
+      const token = jwt.sign(
+        { 
+          userId: user._id, 
+          email: user.email,
+          role: user.role 
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      console.log('Generated JWT token for user:', user.email);
+
+      // Set cookie with proper configuration
+      setJWTCookie(res, token);
+
+      // Determine redirect URL
+      let redirectUrl = `${process.env.UI_URL}`;
+      
+      if (!user.role) {
+        console.log('User needs role selection');
+        redirectUrl += '/select-role';
+      } else {
+        console.log('User has role:', user.role);
+        const dashboardMap = {
+          admin: '/admindashboard',
+          mentor: '/mentordashboard',
+          user: '/userdashboard'
+        };
+        redirectUrl += dashboardMap[user.role] || '/userdashboard';
       }
-      
-      return res.redirect(`${process.env.UI_URL}/signup?error=google_auth_failed`);
+
+      // Add password info if it's a new user with generated password
+      if (user.tempGeneratedPassword) {
+        console.log('Adding new password to redirect');
+        const encodedPassword = encodeURIComponent(user.tempGeneratedPassword);
+        redirectUrl += `?newPassword=${encodedPassword}`;
+      }
+
+      console.log('Redirecting to:', redirectUrl);
+      res.redirect(redirectUrl);
+
+    } catch (error) {
+      console.error('Google OAuth callback error:', error);
+      res.redirect(`${process.env.UI_URL}/login?error=authentication_failed`);
     }
-    
-    // Authentication successful, proceed to controller
-    next();
-  });
-}, authController.googleCallback);
+  }
+);
+
 
 // GitHub OAuth Routes
 router.get('/github', (req, res, next) => {
@@ -59,27 +107,70 @@ router.get('/github', (req, res, next) => {
   })(req, res, next);
 });
 
-router.get('/github/callback', (req, res, next) => {
-  console.log('GitHub OAuth callback received');
-  
-  passport.authenticate('github', {
-    session: false,
-    failureRedirect: `${process.env.UI_URL}/signup?error=github_auth_failed`
-  })(req, res, (err) => {
-    if (err) {
-      console.error('GitHub OAuth callback error:', err);
+router.get('/github/callback', 
+  passport.authenticate('github', { 
+    session: false, 
+    failureRedirect: `${process.env.UI_URL}/login?error=github_auth_failed` 
+  }),
+  async (req, res) => {
+    try {
+      console.log('GitHub OAuth callback triggered');
+      console.log('User from OAuth:', {
+        id: req.user._id,
+        email: req.user.email,
+        role: req.user.role,
+        hasNewPassword: !!req.user.tempGeneratedPassword
+      });
+
+      const user = req.user;
       
-      if (err.message === 'USER_EXISTS') {
-        return res.redirect(`${process.env.UI_URL}/login?error=account_exists&email=${encodeURIComponent(err.email)}`);
+      // Generate JWT token
+      const token = jwt.sign(
+        { 
+          userId: user._id, 
+          email: user.email,
+          role: user.role 
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      console.log('Generated JWT token for user:', user.email);
+
+      // Set cookie with proper configuration
+      setJWTCookie(res, token);
+
+      // Determine redirect URL (same logic as Google)
+      let redirectUrl = `${process.env.UI_URL}`;
+      
+      if (!user.role) {
+        console.log('User needs role selection');
+        redirectUrl += '/select-role';
+      } else {
+        console.log('User has role:', user.role);
+        const dashboardMap = {
+          admin: '/admindashboard',
+          mentor: '/mentordashboard',
+          user: '/userdashboard'
+        };
+        redirectUrl += dashboardMap[user.role] || '/userdashboard';
       }
-      
-      return res.redirect(`${process.env.UI_URL}/signup?error=github_auth_failed`);
+
+      if (user.tempGeneratedPassword) {
+        console.log('Adding new password to redirect');
+        const encodedPassword = encodeURIComponent(user.tempGeneratedPassword);
+        redirectUrl += `?newPassword=${encodedPassword}`;
+      }
+
+      console.log('Redirecting to:', redirectUrl);
+      res.redirect(redirectUrl);
+
+    } catch (error) {
+      console.error('GitHub OAuth callback error:', error);
+      res.redirect(`${process.env.UI_URL}/login?error=authentication_failed`);
     }
-    
-    // Authentication successful, proceed to controller
-    next();
-  });
-}, authController.githubCallback);
+  }
+);
 
 // Regular Authentication Routes
 router.post('/signup', authController.signup);

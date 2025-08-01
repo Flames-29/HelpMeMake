@@ -2,26 +2,30 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../Model/User');
 const { generateOTP, sendOTPEmail } = require('../config/emailService');
+const { setJWTCookie } = require('../config/cookieConfig'); // Add this import
 
 
-const generateToken = (userId) => {
+const generateToken = (userId, email, role) => {
   return jwt.sign(
-    { userId },
+    { 
+      userId, 
+      email, 
+      role 
+    },
     process.env.JWT_SECRET,
     { expiresIn: '7d' } 
-    
   );
 };
 
-
-const setTokenCookie = (res, token) => {
-  res.cookie('access_token', token, {
-    httpOnly: true, 
-    secure: process.env.NODE_ENV === 'production', 
-    sameSite: 'lax', 
-    maxAge: 7 * 24 * 60 * 60 * 1000 
-  });
-};
+// Remove the old setTokenCookie function since we'll use setJWTCookie
+// const setTokenCookie = (res, token) => {
+//   res.cookie('access_token', token, {
+//     httpOnly: true, 
+//     secure: process.env.NODE_ENV === 'production', 
+//     sameSite: 'lax', 
+//     maxAge: 7 * 24 * 60 * 60 * 1000 
+//   });
+// };
 
 const authController = {
  
@@ -33,9 +37,9 @@ const authController = {
           return res.redirect(`${process.env.UI_URL}/login?error=authentication_failed`);
         }
         
-        // Generate token and set cookie (this should happen for all users)
-        const token = generateToken(user._id);
-        setTokenCookie(res, token);
+        // Generate token and set cookie using the consistent helper
+        const token = generateToken(user._id, user.email, user.role);
+        setJWTCookie(res, token);
 
         // Determine redirect URL
         let redirectUrl = `${process.env.UI_URL}`;
@@ -91,8 +95,8 @@ const authController = {
           return res.redirect(`${process.env.UI_URL}/login?error=authentication_failed`);
         }
 
-        const token = generateToken(user._id);
-        setTokenCookie(res, token);
+        const token = generateToken(user._id, user.email, user.role);
+        setJWTCookie(res, token);
 
         // Check if this is a new user with generated password
         let redirectUrl = `${process.env.UI_URL}`;
@@ -288,8 +292,6 @@ const authController = {
     }
   },
 
-
-
   signup: async (req, res) => {
     try {
       const { email, password, name } = req.body;
@@ -409,9 +411,9 @@ const authController = {
       user.otpExpires = null;
       await user.save();
 
-      // Generate JWT token
-      const token = generateToken(user._id);
-      setTokenCookie(res, token);
+      // Generate JWT token and set cookie using consistent helper
+      const token = generateToken(user._id, user.email, user.role);
+      setJWTCookie(res, token);
 
       res.json({
         success: true,
@@ -484,7 +486,7 @@ const authController = {
     }
   },
 
-
+  // Updated login method to use consistent cookie setting
   login: async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -523,9 +525,11 @@ const authController = {
         });
       }
 
-      // Generate JWT token
-      const token = generateToken(user._id);
-      setTokenCookie(res, token);
+      // Generate JWT token with consistent structure
+      const token = generateToken(user._id, user.email, user.role);
+      
+      // Use the same cookie setting helper as OAuth routes
+      setJWTCookie(res, token);
 
       res.json({
         success: true,
@@ -547,8 +551,6 @@ const authController = {
       });
     }
   },
-
-
 
   logout: (req, res) => {
     try {
